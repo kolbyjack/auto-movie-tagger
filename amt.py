@@ -15,7 +15,6 @@ import os
 import urllib
 import sys
 import types
-import json
 import tmdbsimple as tmdb
 from imdbpie import Imdb
 import inquirer
@@ -28,12 +27,36 @@ tmdb.API_KEY = "b888b64c9155c26ade5659ea4dd60e64"
 def collect_files(file_type):
     return sorted([fn for fn in os.listdir(os.getcwd()) if fn.endswith(file_type)])
 
+def readNfo(title):
+    md = {}
+
+    nfo_filename = "%s.nfo" % title
+    if not os.path.isfile(nfo_filename):
+        return md
+
+    try:
+        tree = ET.parse(nfo_filename)
+        root = tree.getroot()
+        for child in root:
+            if child.tag in ("id", "title", "plot", "rating"):
+                md[child.tag] = child.text
+            elif child.tag == "capturedate":
+                md["year"] = child.text
+            elif child.tag == "genre":
+                md.setdefault("genres", []).append(child.text)
+    except:
+        pass
+
+    return md
+
 def writeNfo(title, md):
     nfo_filename = "%s.nfo" % title
     if os.path.isfile(nfo_filename):
         return
 
     movie = ET.Element("movie")
+    ET.SubElement(movie, "id").text = md["id"]
+    ET.SubElement(movie, "rating").text = str(md["rating"])
     ET.SubElement(movie, "title").text = md["title"]
     ET.SubElement(movie, "plot").text = md["plot"]
     ET.SubElement(movie, "capturedate").text = str(md["year"])
@@ -44,14 +67,9 @@ def writeNfo(title, md):
         fp.write(ET.tostring(movie))
 
 def fetchMetadata(title):
-    md_filename = "%s.json" % title
-    metadata = {}
-    if os.path.isfile(md_filename):
-        with open(md_filename, "r") as fp:
-            metadata = json.load(fp)
-
-        if "title" in metadata:
-            return metadata
+    metadata = readNfo(title)
+    if "title" in metadata:
+        return metadata
 
     imdb = Imdb()
     if "id" not in metadata:
@@ -105,8 +123,7 @@ def fetchMetadata(title):
 
     metadata["genres"] = imdb.get_title_genres(metadata["id"])["genres"]
 
-    with open(md_filename, "w") as fp:
-        json.dump(metadata, fp)
+    writeNfo(title, metadata)
 
     return metadata
 
@@ -141,4 +158,5 @@ def start_process(filenames):
             print("\nERROR processing %s: %s\n" % (filename, e))
         print("")
 
+os.chdir("/mnt/baikal/zerolatency")
 start_process(collect_files(".mp4"))
