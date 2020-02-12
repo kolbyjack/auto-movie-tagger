@@ -23,14 +23,13 @@ import xml.etree.ElementTree as ET
 #  Setting the API key for usage of TMDB API
 tmdb.API_KEY = "b888b64c9155c26ade5659ea4dd60e64"
 
-
-def collect_files(file_type):
-    return sorted([fn for fn in os.listdir(os.getcwd()) if fn.endswith(file_type)])
+BASE_PATH = "/mnt/baikal/movies"
+ALL_MOVIES_PATH = "{}/All".format(BASE_PATH)
 
 def readNfo(title):
     md = {}
 
-    nfo_filename = "%s.nfo" % title
+    nfo_filename = "{}/{}.nfo".format(ALL_MOVIES_PATH, title)
     if not os.path.isfile(nfo_filename):
         return md
 
@@ -50,9 +49,7 @@ def readNfo(title):
     return md
 
 def writeNfo(title, md):
-    nfo_filename = "%s.nfo" % title
-    if os.path.isfile(nfo_filename):
-        return
+    nfo_filename = "{}/{}.nfo".format(ALL_MOVIES_PATH, title)
 
     movie = ET.Element("movie")
     ET.SubElement(movie, "id").text = md["id"]
@@ -128,7 +125,7 @@ def fetchMetadata(title):
     return metadata
 
 def fetchPoster(title, md):
-    poster_filename = "%s.jpg" % title
+    poster_filename = "{}/{}.jpg".format(ALL_MOVIES_PATH, title)
     if os.path.isfile(poster_filename):
         return
 
@@ -136,27 +133,33 @@ def fetchPoster(title, md):
     tmdb_find = tmdb.Find(md["id"])
     tmdb_find.info(external_source="imdb_id")
 
-    path = tmdb_find.movie_results[0]["poster_path"]
-    complete_path = r"https://image.tmdb.org/t/p/w780" + path
+    poster_url = r"https://image.tmdb.org/t/p/w780{}".format(tmdb_find.movie_results[0]["poster_path"])
 
-    uo = urllib.request.urlopen(complete_path)
+    uo = urllib.request.urlopen(poster_url)
     with open(poster_filename, "wb") as poster_file:
         poster_file.write(uo.read())
         poster_file.close()
 
-def start_process(filenames):
-    for filename in filenames:
+def linkGenres(title, md):
+    for genre in md["genres"]:
+        genrePath = "{}/{}".format(BASE_PATH, genre)
+        os.makedirs(genrePath, exist_ok=True)
+        for ext in (".mp4", ".jpg", ".nfo"):
+            os.link("{}/{}{}".format(ALL_MOVIES_PATH, title, ext), "{}/{}{}".format(genrePath, title, ext))
+
+def processMovies():
+    allMovies = sorted([fn for fn in os.listdir(ALL_MOVIES_PATH) if fn.endswith(file_type)])
+
+    for filename in allMovies:
         try:
             title = filename[:-4]
             print("Processing %s" % title)
             md = fetchMetadata(title)
             writeNfo(title, md)
             fetchPoster(title, md)
-
-            # TODO: link file to each genre subdir
+            linkGenres(title, md)
         except Exception as e:
             print("\nERROR processing %s: %s\n" % (filename, e))
         print("")
 
-os.chdir("/mnt/baikal/zerolatency")
-start_process(collect_files(".mp4"))
+processMovies()
