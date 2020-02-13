@@ -23,13 +23,12 @@ import xml.etree.ElementTree as ET
 #  Setting the API key for usage of TMDB API
 tmdb.API_KEY = "b888b64c9155c26ade5659ea4dd60e64"
 
-BASE_PATH = "/mnt/baikal/movies"
-ALL_MOVIES_PATH = "{}/All".format(BASE_PATH)
+BASE_PATH = "/srv/media/movies"
 
 def readNfo(title):
     md = {}
 
-    nfo_filename = "{}/{}.nfo".format(ALL_MOVIES_PATH, title)
+    nfo_filename = "{}/{}.nfo".format(BASE_PATH, title)
     if not os.path.isfile(nfo_filename):
         return md
 
@@ -49,7 +48,7 @@ def readNfo(title):
     return md
 
 def writeNfo(title, md):
-    nfo_filename = "{}/{}.nfo".format(ALL_MOVIES_PATH, title)
+    nfo_filename = "{}/{}.nfo".format(BASE_PATH, title)
 
     movie = ET.Element("movie")
     ET.SubElement(movie, "id").text = md["id"]
@@ -68,19 +67,27 @@ def fetchMetadata(title):
     if "title" in metadata:
         return metadata
 
+    print("Processing %s" % title)
+
+    searchtitle = title
+    if searchtitle.endswith(", The"):
+        searchtitle = "The {}".format(searchtitle[:-5])
+    elif searchtitle.endswith(", A"):
+        searchtitle = "A {}".format(searchtitle[:-3])
+
     imdb = Imdb()
     if "id" not in metadata:
         print("Searching IMDB")
-        results = imdb.search_for_title(title)
+        results = imdb.search_for_title(searchtitle)
         movie_results = [r for r in results if r["type"] == "feature" and r["year"] is not None]
 
         while len(movie_results) == 0:
-            title = input("No results for \"%s\" Enter alternate/correct movie title >> " % title)
+            searchtitle = input("No results for \"%s\" Enter alternate/correct movie title >> " % searchtitle)
 
-            results = imdb.search_for_title(title)
+            results = imdb.search_for_title(searchtitle)
             movie_results = [r for r in results if r["type"] == "feature" and r["year"] is not None]
 
-        exact_matches = [r for r in movie_results if r["title"].lower() == title.lower()]
+        exact_matches = [r for r in movie_results if r["title"].lower() == searchtitle.lower()]
 
         if len(exact_matches) > 0:
             movie_results = exact_matches
@@ -125,7 +132,7 @@ def fetchMetadata(title):
     return metadata
 
 def fetchPoster(title, md):
-    poster_filename = "{}/{}.jpg".format(ALL_MOVIES_PATH, title)
+    poster_filename = "{}/{}.jpg".format(BASE_PATH, title)
     if os.path.isfile(poster_filename):
         return
 
@@ -140,26 +147,17 @@ def fetchPoster(title, md):
         poster_file.write(uo.read())
         poster_file.close()
 
-def linkGenres(title, md):
-    for genre in md["genres"]:
-        genrePath = "{}/{}".format(BASE_PATH, genre)
-        os.makedirs(genrePath, exist_ok=True)
-        for ext in (".mp4", ".jpg", ".nfo"):
-            os.link("{}/{}{}".format(ALL_MOVIES_PATH, title, ext), "{}/{}{}".format(genrePath, title, ext))
-
 def processMovies():
-    allMovies = sorted([fn for fn in os.listdir(ALL_MOVIES_PATH) if fn.endswith(file_type)])
+    allMovies = sorted([fn for fn in os.listdir(BASE_PATH) if fn.endswith(".mp4")])
 
     for filename in allMovies:
         try:
             title = filename[:-4]
-            print("Processing %s" % title)
             md = fetchMetadata(title)
-            writeNfo(title, md)
-            fetchPoster(title, md)
-            linkGenres(title, md)
+            if md is not None:
+                writeNfo(title, md)
+                fetchPoster(title, md)
         except Exception as e:
             print("\nERROR processing %s: %s\n" % (filename, e))
-        print("")
 
 processMovies()
