@@ -131,9 +131,13 @@ class Video(object):
         if os.path.isfile(poster_filename):
             return
 
-        print("  * Fetching the movie poster...")
+        print("  * Fetching the movie poster")
         tmdb_find = tmdb.Find(self._md["id"])
         tmdb_find.info(external_source="imdb_id")
+
+        if len(tmdb_find.movie_results) == 0:
+            print("    * Unable to find movie poster for {}".format(self._md["id"]))
+            return
 
         poster_url = r"https://image.tmdb.org/t/p/w780{}".format(tmdb_find.movie_results[0]["poster_path"])
 
