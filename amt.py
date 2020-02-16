@@ -158,10 +158,11 @@ class Video(object):
 
     def process(self):
         try:
+            print("Processing {}".format(self._title), end="\r")
             if not self._dirty():
                 return
 
-            print("Processing {}".format(self._title))
+            print("")
             self._read_nfo()
             self._fetch_metadata()
             self._write_nfo()
@@ -172,3 +173,4 @@ class Video(object):
 allMovies = sorted([os.path.join(BASE_PATH, fn) for fn in os.listdir(BASE_PATH) if fn.endswith(".mp4")])
 for filename in allMovies:
     Video(filename).process()
+    print(" " * len("Processing {}".format(filename)), end="\r")
