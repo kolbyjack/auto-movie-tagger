@@ -43,7 +43,7 @@ class Video(object):
         tree = ET.parse(nfo_filename)
         root = tree.getroot()
         for child in root:
-            if child.tag in ("id", "title", "plot", "rating"):
+            if child.tag in ("id", "title", "plot"):
                 self._md[child.tag] = child.text
             elif child.tag == "capturedate":
                 self._md["year"] = child.text
@@ -55,7 +55,6 @@ class Video(object):
 
         movie = ET.Element("movie")
         ET.SubElement(movie, "id").text = self._md["id"]
-        #ET.SubElement(movie, "rating").text = str(self._md["rating"])
         ET.SubElement(movie, "title").text = self._md["title"]
         ET.SubElement(movie, "plot").text = self._md["plot"]
         ET.SubElement(movie, "capturedate").text = str(self._md["year"])
@@ -115,7 +114,6 @@ class Video(object):
 
         self._md["title"] = imdb_movie["base"]["title"]
         self._md["year"] = imdb_movie["base"]["year"]
-        #self._md["rating"] = imdb_movie["ratings"]["rating"]
 
         if "outline" in imdb_movie["plot"]:
             self._md["plot"] = imdb_movie["plot"]["outline"]["text"]
